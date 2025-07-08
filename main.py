@@ -7,10 +7,9 @@ from utils.ArgParser import ArgParser
 from FeatureSelectorLLM import FeatureSelectorLLM
 from utils.SolutionPlot import Plotter
 
-def local_search(initial_solution, repeated_solutions_count,local_iterations, model: Model,feature_selector: FeatureSelectorLLM, rcl_size):
-    max_f1_score = model.evaluate_algorithm(initial_solution)
+def local_search(initial_solution,initial_solution_f1_score,seen_solutions, repeated_solutions_count,local_iterations, model: Model,feature_selector: FeatureSelectorLLM, rcl_size):
+    max_f1_score = initial_solution_f1_score
     best_solution = initial_solution.copy()
-    seen_solutions = {frozenset(initial_solution)}
     feature_names = model.db.feature_names
     sorted_features = model.db.sorted_features
 
@@ -18,32 +17,28 @@ def local_search(initial_solution, repeated_solutions_count,local_iterations, mo
 
     for iteration in range(local_iterations):
         new_solution = best_solution.copy()
-
+        new_solution_set =  [feature_names[i] for i in new_solution]
         logging.info(
             f"  → Local Iteration {iteration + 1}/{local_iterations} | Current best F1: {max_f1_score:.4f}")
-
-        tries = len(new_solution)
-        while tries>0:
-            RCL = [feature_names.index(feature) for feature, score in sorted_features[:rcl_size]
-                   if feature_names.index(feature) not in new_solution]
+        local_repeated_solutions_count = 0
+        while local_repeated_solutions_count<10:
+            RCL = [feature for feature, _ in sorted_features[:args.rcl_size]
+                   if feature not in new_solution_set]
             if not RCL:
                 logging.info("    ✖ RCL is empty. No replacement possible.")
                 break
 
             new_selected_features = feature_selector.select_features(
-                f"choose 1 feature from the current solution {best_solution} to replace"
+                f"change features from the current solution {new_solution_set}."
                 f"Replace de choose feature with 1 feature from the following list: {', '.join(str(idx) for idx in RCL)}, that is not in the current solution."
-                f"The response should be a new solution with some form as current solution."
-                f"The list containes features with high Mutual Information scores."
-                f"Ensure the selected features are unique and relevant for the task at hand."
+                f"Return the selected features in a list format, e.g., selected_features=[featname1, featname2, ...]. This format is required"
             )
             new_solution = [feature_names.index(feature_name) for feature_name in new_selected_features]
-
-            new_solution_set = frozenset(new_solution)
+            new_solution_set = frozenset(new_selected_features)
             if new_solution_set in seen_solutions:
                 repeated_solutions_count += 1
+                local_repeated_solutions_count += 1
                 logging.info(f"    ↺ Duplicate feature combination: {list(new_solution_set)} — Skipping")
-                tries -= 1
                 continue
             else:
                 break
@@ -51,17 +46,15 @@ def local_search(initial_solution, repeated_solutions_count,local_iterations, mo
         sorted_indices = sorted(new_solution)
         f1_score = model.evaluate_algorithm(new_solution)
         logging.info(f"    ✓ Evaluated F1-Score: {f1_score:.4f} for solution: {sorted_indices}")
-
+        seen_solutions.add(new_solution_set)
         if f1_score > max_f1_score and new_solution_set != frozenset(best_solution):
             max_f1_score = f1_score
             best_solution = new_solution
-            seen_solutions.add(new_solution_set)
             sorted_best = sorted(best_solution)
             logging.info(
                 f"        Improvement found! New best solution: {sorted_best} with F1-Score: {max_f1_score:.4f}")
         elif new_solution_set == frozenset(best_solution):
             logging.info("No real improvement (same as best solution)")
-
     logging.info(f"Local Search completed. Best F1-Score: {max_f1_score}, Best Solution: {best_solution}")
     return max_f1_score, best_solution, repeated_solutions_count
 
@@ -92,16 +85,16 @@ def construction(args,model: Model):
         raise ValueError("The RCL size cannot exceed the number of available features.")
     if args.initial_solution > args.rcl_size:
         raise ValueError("The initial solution size cannot exceed the RCL size.")
-
+    max_repeted_solutions = False
     for iteration in range(args.constructive_iterations):
         # Ensure the initial solution is unique
         while True:
             # Randomly select k features from RCL to generate initial solutions
            ## selected_features = random.sample(RCL, k=args.initial_solution)
             selected_features = feature_selector.select_features(
-                f"Select {args.initial_solution} features from the following list: {', '.join(str(idx) for idx in RCL)}. "
-                f"The list containes features with high Mutual Information scores."
-                f"Ensure the selected features are unique and relevant for the task at hand."
+                f"Select only {args.initial_solution} features from the following list: {', '.join(str(idx) for idx in RCL)}. "
+                f"Return the selected features in a list format, e.g., selected_features=[featname1, featname2, ...]. This format is required"
+                f"Ensure the selected features are unique and selected feature set was not selected before."
             )
             # Convert feature names into indices
             solution = [feature_names.index(feature_name) for feature_name in selected_features]
@@ -112,8 +105,15 @@ def construction(args,model: Model):
                 break
             else:
                 repeated_solutions_count += 1  # Incrementa o contador
+                if repeated_solutions_count >= 8:
+                    logging.warning("Maximum number of repeated initial solutions reached. Stopping generation.")
+                    max_repeted_solutions = True
+                    break
                 logging.info(f"Repeated initial solution found: {solution}, generating a new solution...")
 
+        if max_repeted_solutions:
+            logging.info("Maximum number of repeated initial solutions reached. Stopping generation.")
+            break
         f1_score = model.evaluate_algorithm(solution)
         logging.info(f"F1-Score: {f1_score} for solution: {solution}")
         all_solutions.append((iteration, f1_score, solution))
@@ -147,7 +147,7 @@ def construction(args,model: Model):
         original_f1_score , current_solution = priority_queue.extract_max()
 
         improved_f1_score, improved_solution, repeated_solutions_count_local_search = local_search(
-        current_solution, repeated_solutions_count_local_search,args.local_interations, args.algorithm, args.rcl_size)
+        current_solution,original_f1_score,seen_initial_solutions, repeated_solutions_count_local_search,args.local_iterations,model,feature_selector, args.rcl_size)
 
         # Increment iteration count
         queue_progress += 1

@@ -46,7 +46,7 @@ class ArgParser():
             action="store_true",
             help="Enable debug mode."
         )
-        self.args = self.parser.parse_known_args()
+        self.args = self.parser.parse_args()
 
     def get_args(self):
         return self.args

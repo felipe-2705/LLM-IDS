@@ -1,29 +1,32 @@
 import os
 import re
-import openai
+from groq import Groq  # Alterado de openai para groq
 from typing import List
+from utils.Logger import CustomLogger
 
 class FeatureSelectorLLM():
-    def __init__(self, logger=None, model: str = "gpt-3.5-turbo", temperature: float = 0.3):
+    def __init__(self, logger: CustomLogger, model: str = "llama-3.1-8b-instant", temperature: float = 0.3):
         """
         Initialize the FeatureSelectorLLM with a model and optional logger.
         :param logger: A CustomLogger object for logging operations (optional).
-        :param model: Name of the LLM model to use (default is gpt-3.5-turbo).
+        :param model: Name of the Groq model to use (default is llama-3.1-8b-instant).
         :param temperature: Sampling temperature for the LLM (default is 0.3).
         """
         self.logger = logger
         self.model = model
         self.temperature = temperature
         self.history = []
+        if not os.getenv("GROQ_API_KEY"):
+            raise EnvironmentError("GROQ_API_KEY environment variable not set.")
+        self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
     def select_features(self, prompt: str) -> List[int]:
         """
-        Use ChatGPT to select features based on a given prompt.
+        Use Groq LLM to select features based on a given prompt.
         :param prompt: A string describing the feature selection criteria.
         :return: A list of selected feature indices.
         """
-        if self.logger:
-            self.logger.info("Starting feature selection using ChatGPT...")
+        self.logger.info("Starting feature selection using Groq LLM...")
 
         try:
             # Query the LLM using the provided prompt
@@ -32,57 +35,60 @@ class FeatureSelectorLLM():
             # Parse the response to extract feature indices
             selected_features = self._parse_llm_response(llm_response)
 
-            if self.logger:
-                self.logger.info(f"Selected features: {selected_features}")
-
+            self.logger.info(f"Selected features: {selected_features}")
             return selected_features
         except Exception as e:
-            if self.logger:
-                self.logger.error(f"Feature selection failed: {e}")
+            self.logger.error(f"Feature selection failed: {e}")
             raise RuntimeError("Feature selection process failed.") from e
 
     def _query_llm(self, prompt: str) -> str:
         """
-        Query OpenAI's ChatGPT API to get a response based on the prompt.
+        Query Groq's LLM API to get a response based on the prompt.
         :param prompt: A string describing the feature selection criteria.
-        :return: The response from ChatGPT as a string.
+        :return: The response from Groq LLM as a string.
         """
         try:
-            # Load API key from environment variable
-            openai.api_key = os.getenv("OPENAI_API_KEY")
-            if not openai.api_key:
-                raise EnvironmentError("OPENAI_API_KEY environment variable not set.")
-            
-            messages = self.history.copy()
+            messages=[]
+            #messages = self.history.copy()
             messages.append({"role": "user", "content": prompt})
-            response = openai.ChatCompletion.create(
+            response = self.client.chat.completions.create(
                 model=self.model,
                 temperature=self.temperature,
-                messages=messages
+                messages=messages,
+                stream=False
             )
-            llm_response = response['choices'][0]['message']['content']
-            self.history.append({"role": "user", "content": prompt})
-            self.history.append({"role": "assistant", "content": llm_response})
+            llm_response = response.choices[0].message.content
+            #self.history.append({"role": "user", "content": prompt})
+            #self.history.append({"role": "assistant", "content": llm_response})
             return llm_response
         except Exception as e:
             if self.logger:
-                self.logger.error(f"Error querying ChatGPT: {e}")
-            raise RuntimeError("Failed to query ChatGPT.") from e
+                self.logger.error(f"Error querying Groq LLM: {e}")
+            raise RuntimeError("Failed to query Groq LLM.") from e
 
-    def _parse_llm_response(self, response: str) -> List[int]:
+    def _parse_llm_response(self, response: str) -> List[str]:
         """
-        Parse the ChatGPT response to extract feature indices.
-        :param response: The response from ChatGPT as a string.
-        :return: A list of feature indices extracted from the response.
+        Parse the LLM response to extract only the list of selected features.
+        :param response: The response from LLM as a string.
+        :return: A list of selected feature names.
         """
         try:
-            # Use regex to find all integers in the response
-            matches = re.findall(r'\b\d+\b', response)
-            indices = [int(m) for m in matches]
-            if not indices:
-                raise ValueError("No feature indices found in response.")
-            return indices
+            # Try to extract a Python list from a code block
+            code_block = re.search(r"```python\s*selected_features\s*=\s*(\[[^\]]+\])", response, re.DOTALL)
+            if code_block:
+                list_str = code_block.group(1)
+                # Extract feature names inside quotes
+                features = re.findall(r'"([^"]+)"|\'([^\']+)\'', list_str)
+                return [f1 or f2 for f1, f2 in features]
+
+            # Fallback: extract a list enclosed in brackets
+            bracket_list = re.search(r"\[([^\]]+)\]", response)
+            if bracket_list:
+                features = [f.strip(" '\"\n") for f in re.split(r',|\n', bracket_list.group(1)) if f.strip(" '\"\n")]
+                return features
+
+            raise ValueError("No feature names found in response.")
         except Exception as e:
             if self.logger:
-                self.logger.error(f"Error parsing ChatGPT response: {e}")
-            raise ValueError("Failed to parse ChatGPT response.") from e
+                self.logger.error(f"Error parsing LLM response: {e}")
+            raise ValueError("Failed to parse LLM response.") from e
