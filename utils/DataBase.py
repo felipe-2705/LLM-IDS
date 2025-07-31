@@ -19,8 +19,8 @@ class DataBase():
 
     def load_data(self):
         # Data loading
-        self.train_df = pd.read_csv('/app/data/hibrid_dataset_GOOSE_train.csv', sep=',')
-        self.test_df = pd.read_csv('/app/data/hibrid_dataset_GOOSE_test.csv', sep=',')
+        self.train_df = pd.read_csv('data/hibrid_dataset_GOOSE_train.csv', sep=',')
+        self.test_df = pd.read_csv('data/hibrid_dataset_GOOSE_test.csv', sep=',')
         self.logging.info(f"Original dataset (Train): \n{self.train_df.head().to_string()}")
         self.logging.info(f"Original dataset (Test): \n{self.test_df.head().to_string()}")
         self.logging.info(f"Unique classes in the test dataset: {self.test_df['class'].unique()}")
@@ -95,13 +95,13 @@ class DataBase():
         if len(cat_cols) > 0:
             encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
             cat_encoded = encoder.fit_transform(self.x_train[cat_cols])
-            cat_encoded_df = pd.DataFrame(cat_encoded, columns=encoder.get_feature_names_out(cat_cols))
+            cat_encoded_df = pd.DataFrame(cat_encoded, columns=cat_cols, index=self.x_train.index)
 
-            # Drop original categorical columns and concat encoded columns
-            self.x_train = pd.concat([self.x_train[num_cols], cat_encoded_df], axis=1)
+            # Remova as colunas categóricas originais antes de concatenar
+            self.x_train = pd.concat([self.x_train.drop(columns=cat_cols), cat_encoded_df], axis=1)
             cat_encoded_test = encoder.transform(self.x_test[cat_cols])
-            cat_encoded_test_df = pd.DataFrame(cat_encoded_test, columns=encoder.get_feature_names_out(cat_cols))
-            self.x_test = pd.concat([self.x_test[num_cols], cat_encoded_test_df], axis=1)
+            cat_encoded_test_df = pd.DataFrame(cat_encoded_test, columns=cat_cols, index=self.x_test.index)
+            self.x_test = pd.concat([self.x_test.drop(columns=cat_cols), cat_encoded_test_df], axis=1)
 
         # Initialize LabelEncoder for labels/classes
         self.le = LabelEncoder()

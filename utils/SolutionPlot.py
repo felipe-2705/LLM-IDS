@@ -10,7 +10,7 @@ class Plotter:
         """
         self.logger = logger
         self.priority_queue = priority_queue
-
+        self.results_path = "results"
 
     def plot_solutions_with_priority(self,all_solutions):
         # Convert the priority queue into a set for fast lookup
@@ -32,7 +32,7 @@ class Plotter:
         plt.legend(handles=[plt.Line2D([0], [0], marker='o', color='w', label='Top 10', markersize=10, markerfacecolor='red'),
                         plt.Line2D([0], [0], marker='o', color='w', label='Outras Soluções', markersize=10, markerfacecolor='blue')],
                 loc='lower right')
-        plt.savefig(f"priority_plot.png")
+        plt.savefig(f"{self.results_path}/priority_plot.png")
 
 
     def plot_solutions(self,all_solutions, local_search_improvements):
@@ -76,5 +76,5 @@ class Plotter:
         plt.tick_params(axis='y', labelsize=12)  # Aumenta o tamanho da fonte das marcações do eixo y
         plt.tight_layout()
 
-        plt.savefig(f"all_bestsolution.png")
-        plt.savefig(f"all_bestsolution.pdf")
+        plt.savefig(f"{self.results_path}/all_bestsolution.png")
+        plt.savefig(f"{self.results_path}/all_bestsolution.pdf")

@@ -37,9 +37,14 @@ class ArgParser():
             help="Number of iterations in the local search phase."
         )
         self.parser.add_argument(
-            "-cc", "--constructive_iterations", "--const",
+            "-lb", "--local_batch", "--localbatch",
             type=int, default=100,
-            help="Number of iterations in the constructive phase."
+            help="Number of solutions in the local search phase batch."
+        )
+        self.parser.add_argument(
+            "-cb", "--constructive_batch", "--const",
+            type=int, default=100,
+            help="Number of solutions in the constructive phase batch."
         )
         self.parser.add_argument(
             "-d", "--debug",
