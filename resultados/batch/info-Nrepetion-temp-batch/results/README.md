@@ -1,19 +1,19 @@
 ##command:
 
 ```script
-python main.py -a rf -rcl 40 -is 10 -pq 10 -lc 5 -cb 20 -lb 20 --debug
+python main.py -a rf -rcl 20 -is 5 -pq 10 -lc 5 -cb 40 -lb 20 --debug
 ```
 temp: 0.7
 avaliator: RandomFlorest
 
 Constrution-prompt:
 ```
-"Your goal is to generate Exactly {args.constructive_batch} unique feature sets (solutions), which solution must have EXACTLY {args.initial_solution} unique features that MUST be selected from RCL."
+"Your goal is to generate Exactly {args.constructive_batch} unique feature sets (solutions), which solution must have EXACTLY {args.initial_solution} unique features that MUST be selected from RCL. "
 "Input in json format: {json.dumps(query_json)}. "
 "The description of each feature is {RCL_features_dict}. "
 "Output MUST be a single valid JSON string in following format (with no explanation or code):{{\"solutions\": [[...], [...], ...]}}. This format is required. "
-"Ensure the solutions are unique and selected feature set was not selected before. "
-"Do NOT include any explanation, text, or Python code.. 
+"Ensure the solutions are unique (Feature order doesnt make a new solutions. [1,2] and [2,1] are same solution) and selected feature set was not selected before. "
+"Do NOT include any explanation, text, or Python code.. "
 ```
 local search prompt:
 ```
@@ -24,17 +24,8 @@ local search prompt:
 "Inputs in json format: {json.dumps(querry_json)}."
 "Output MUST be a single valid JSON string in following format (with no explanation or code):{{\"solutions\": [[...], [...], ...]}}. Solutions list MUST BE exactly {batch_size} long. This format is required"
 "Ensure the solutions are unique and selected feature set was not selected before."
-"Do NOT include any explanation, text, or Python code.."
 ```
 
-history: LOCAL
-Repetion Limit: NO
-
-
-
-Notes: Aumentar o  RCL melhorou bastante a precisao do modelo juntamente com o tamanho das soluções iniciais. Reduzir o batch da fase de construção foi  necessario devido ao limite de tokens. Foi encontrado varias soluçoes melhores que a baseline. 
-
-Porcentagem de soluções novas encontradas durante a fase local: 63%
-Soluções repetidas: 382
-soluções invalidas: 47
-Best F1-Score: 0.9915332784815528
+Porcentagem de soluções novas encontradas durante a fase local: 60%
+Soluções repetidas: 369
+soluções invalidas: 6

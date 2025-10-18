@@ -1,7 +1,5 @@
-##command:
-
 ```script
-python main.py -a rf -rcl 40 -is 10 -pq 10 -lc 5 -cb 20 -lb 20 --debug
+python main.py -a rf -rcl 20 -is 5 -pq 10 -lc 5 -cb 20 -lb 10 --debug
 ```
 temp: 0.7
 avaliator: RandomFlorest
@@ -15,6 +13,7 @@ Constrution-prompt:
 "Ensure the solutions are unique and selected feature set was not selected before. "
 "Do NOT include any explanation, text, or Python code.. 
 ```
+
 local search prompt:
 ```
 "Your goal is to generate EXACTLY {batch_size} (NEVER MORE THAN THAT) unique feature sets (solutions), each with features that MUST be selected from RCL, based on modifying the best_solution."
@@ -24,17 +23,12 @@ local search prompt:
 "Inputs in json format: {json.dumps(querry_json)}."
 "Output MUST be a single valid JSON string in following format (with no explanation or code):{{\"solutions\": [[...], [...], ...]}}. Solutions list MUST BE exactly {batch_size} long. This format is required"
 "Ensure the solutions are unique and selected feature set was not selected before."
-"Do NOT include any explanation, text, or Python code.."
 ```
 
 history: LOCAL
 Repetion Limit: NO
 
-
-
-Notes: Aumentar o  RCL melhorou bastante a precisao do modelo juntamente com o tamanho das soluções iniciais. Reduzir o batch da fase de construção foi  necessario devido ao limite de tokens. Foi encontrado varias soluçoes melhores que a baseline. 
-
-Porcentagem de soluções novas encontradas durante a fase local: 63%
-Soluções repetidas: 382
-soluções invalidas: 47
-Best F1-Score: 0.9915332784815528
+Porcentagem de soluções novas encontradas durante a fase local: 50%
+Soluções repetidas: 242
+soluções invalidas: 0
+Best F1-Score: 0.9186923112214614

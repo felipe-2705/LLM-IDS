@@ -31,3 +31,8 @@ history: NO
 Repetion Limit: 20
 
 Notes: Temperatura nao parece ter afetado o resultado
+
+Porcentagem de soluções novas encontradas durante a fase local: 84%
+Soluções repetidas: 136
+soluções invalidas: 0
+Best F1-Score: 0.9030692743147423
